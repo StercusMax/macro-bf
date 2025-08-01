@@ -264,7 +264,8 @@ int processmacros(char * s, char * output, char *name, int *outputpos, unsigned 
 					macros[hashedstring].macrolist[pos].bfi = allocate(INITIALMBFI);
 				if (*i - bfi >= INITIALMBFI)
 					macros[hashedstring].macrolist[pos].bfi = reallocate(macros[hashedstring].macrolist[pos].bfi, INITIALMBFI * ((*i - bfi) / INITIALMBFI + 1));
-				strncpy(macros[hashedstring].macrolist[pos].bfi, s + bfi, *i - bfi);		
+				strncpy(macros[hashedstring].macrolist[pos].bfi, s + bfi, *i - bfi);
+				macros[hashedstring].macrolist[pos].bfi[*i - bfi] = '\0';		
 			}
 			else {
 				if (macros[hashedstring].macrolist[pos].bfi) {
