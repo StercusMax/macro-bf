@@ -21,7 +21,7 @@ int main(int argc, char ** argv)
 	char code[CODESIZE], output[OUTPUTSIZE];
 	openfile(code, argv[1]);
 	if (preprocess(code, output, argv[1])) {fprintf(stderr, "Incorrect macro syntax in %s\n", argv[1]); return -3;}		
-	printf("%s\n", output);
+	printf("code:\n%s\n", output);
 	return 0;
 }
 
@@ -112,13 +112,45 @@ int preprocess(char * s, char * output, char * name)
 						endc = '#';
 
 					while (s[++i]) {
+						currentpos.collumn++;	
 						if (s[i] == endc) {
-							currentpos.collumn++;	
 							if (endc == '"') {
 								if (s[i - 1] == '\\')
 									continue;	
 							}
-							break;		
+							else if (s[oldi] == 'D' || s[oldi] == 'I') {
+								struct pos backuppos2 = currentpos;
+								i++;
+								if (!s[i] || (s[i] != 'D' && s[i] != 'I' && s[i] != 'U' && s[i] != '$' && s[i] != '%' && s[i] != '"')) {i--; break;}
+								i++;
+								if (s[i - 1] == 'D' || s[i - 1] == 'I') {//gotta check ""
+									int stack;
+									for (stack = 1; s[i] && stack; i++, currentpos.collumn++) {
+										if (s[i] == '#') {
+											if (s[i + 1] == 'D' || s[i + 1] == 'I' || s[i + 1] == 'U' || s[i + 1] == '$' || s[i + 1] == '%')
+												stack++;
+											else
+												stack--;
+										}
+										else if (s[i] == '\n' ) {currentpos.line++; currentpos.collumn = 0;}
+									}
+									if (!stack) {i--; currentpos.collumn--;}
+								}
+								else if (s[i - 1] == 'U' || s[i - 1] == '$' || s[i - 1] == '%')
+									for (; s[i]; i++, currentpos.collumn++) {
+										if (s[i] == '#') break;
+										else if (s[i] == '\n' ) {currentpos.line++; currentpos.collumn = 0;}
+									}
+								else if (s[i - 1] == '"')
+									for (; s[i] && s[i] != '"'; i++, currentpos.collumn++) {
+										if (s[i] == '"')
+											break;
+										else if (s[i] == '\n' ) {currentpos.line++; currentpos.collumn = 0;}
+									}
+								if (!s[i]) {freesubpointers(macros);fprintf(stderr, "Not closed # in %s line : %ld, collumn : %ld\n",  name, backuppos2.line + 1, backuppos2.collumn + 1); return -1;}; 		
+							}
+							else
+								break;
 						}
 						else if (s[i] == '\n' ) {currentpos.line++; currentpos.collumn = 0;}
 						else if (s[i] == ':' && !colon) {
@@ -182,7 +214,7 @@ int preprocess(char * s, char * output, char * name)
 							args++;
 						}
 						bfi = macros[hashedstring].macrolist[pos].bfi;
-						for (; *bfi != '#'; bfi++)
+						for (; *bfi; bfi++)
 							if (!isspace(*bfi))
 								output[outputpos++] = *bfi;
 					}
@@ -200,6 +232,7 @@ int preprocess(char * s, char * output, char * name)
 							output[outputpos++] = '>';
 						}
 					}
+					break;
 				default:
 					output[outputpos++] = s[i];
 					break;
