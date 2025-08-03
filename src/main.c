@@ -63,8 +63,7 @@ void freesubpointers(struct listmacro * p)
 			continue;
 		if (p[i].size) printf("-----------------\n");
 		for (j = 0; j < p[i].size; j++) {
-			putchar(p[i].macrolist[j].bfi[1]);
-			printf("listmacro[%d] and listmacro.macrolist[%d] name: %s\nbfi = %s\n", i, j, p[i].macrolist[j].name, 
+			printf("listmacro[%d] and listmacro.macrolist[%d] name: %s\nnargs = %d\nbfi = %s\n", i, j, p[i].macrolist[j].name, p[i].macrolist[j].narg, 
 			(p[i].macrolist[j].bfi) ? p[i].macrolist[j].bfi : "NULL");
 			if (p[i].macrolist[j].bfi)
 				free(p[i].macrolist[j].bfi);
@@ -237,16 +236,16 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 			}
 			if ((s[oldi] == 'D' || s[oldi] == 'I') && colon)
 					continue;
-			if (s[(*i)] == ')' && parenthese)
-				parenthese = 0;
+			if (s[(*i)] == ')' && parenthese) {
+				parenthese = 0; continue;
+			}
 			else if (s[oldi] == 'D' || s[oldi] == '$') {
 				if (s[(*i)] == '(' && !parenthese) {
 					argp = &s[(*i) + 1]; parenthese = 1;
 				}
 			}
-			if(s[oldi] != '"')
-				if (!isspace(s[(*i)]))
-					macroname[j++] = s[(*i)];
+			if(s[oldi] != '"' && !isspace(s[(*i)]) && !parenthese)
+				macroname[j++] = s[(*i)];
 		}
 		if (!s[(*i)]) ERROR("Not closed %c in %s line : %ld, collumn : %ld\n", backuppos, -1, endc COMMA) 
 		else if (parenthese) ERROR("Not closed parentheses in %s line : %ld, collumn : %ld\n", backuppos, -1, ) 
@@ -254,20 +253,21 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 		unsigned hashedstring = hashstring(macroname), 
 		foundelement = findelement(macros[hashedstring], macroname),
 		pos = (foundelement) ? foundelement - 1 : macros[hashedstring].size;
+		printf("%d\n", pos);
 		char passedoutput[CODESIZE];
 		int retval;
-		unsigned k, passedoutputpos = 0;
+		unsigned l, k, passedoutputpos = 0;
 		if (s[oldi] == 'D') {
 			if (!foundelement) {
 				if (!macros[hashedstring].macrolist) {
 					macros[hashedstring].macrolist = allocate(sizeof(struct macro) * INITIALLIST); 
 					initializemacrolist(macros[hashedstring].macrolist, 0, INITIALLIST - 1);
 				}
-				else if (pos - 1 > 0 && (pos - 1) % INITIALLIST) {
+				else if (pos > 0 && !(pos % INITIALLIST)) {
 					macros[hashedstring].macrolist = reallocate(macros[hashedstring].macrolist, 
-						sizeof(struct macro) * INITIALLIST * ((pos - 1) / 4)); 
-					initializemacrolist(macros[hashedstring].macrolist, INITIALLIST * ((pos - 1) / 4) - INITIALLIST 
-						, INITIALLIST * ((pos - 1) / 4) - 1);
+						sizeof(struct macro) * INITIALLIST * (pos / INITIALLIST + 1)); 
+					initializemacrolist(macros[hashedstring].macrolist, INITIALLIST * (pos / INITIALLIST) 
+						, INITIALLIST * (pos / INITIALLIST + 1) - 1);
 				}
 				strcpy(macros[hashedstring].macrolist[pos].name, macroname); 
 				macros[hashedstring].size++;
@@ -277,7 +277,7 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 					macros[hashedstring].macrolist[pos].bfi = allocate(INITIALMBFI);
 
 				 //replace strings macros , $ and % macros in bfi
-				unsigned l, encounteredchar = 0;
+				unsigned encounteredchar = 0;
 				for (j = bfi, l = 0; j < *i; j++, l++) {
 					if (!encounteredchar && isspace(s[j])) {l--; continue;}
 					if (s[j] == '\n') encounteredchar = 0;
@@ -308,21 +308,32 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 			}
 			macros[hashedstring].macrolist[pos].narg = 0;
 			if (argp) {
-				for (; *argp != ')'; argp++)
-					if (*argp == ',')
+				int sign = 0;
+				if (!macros[hashedstring].macrolist[pos].argsigns)
+					macros[hashedstring].macrolist[pos].argsigns = allocate(sizeof(int) * INITIALARGSIGN);
+				for (; *argp; argp++) {
+					if (*argp == ',' || *argp == ')') {
+						if (macros[hashedstring].macrolist[pos].narg > 0 && macros[hashedstring].macrolist[pos].narg  % INITIALARGSIGN == 0) 
+						macros[hashedstring].macrolist[pos].argsigns = reallocate(macros[hashedstring].macrolist[pos].argsigns, 
+						sizeof(int) * INITIALARGSIGN * (macros[hashedstring].macrolist[pos].narg  / INITIALARGSIGN + 1));
+
+						macros[hashedstring].macrolist[pos].argsigns[ macros[hashedstring].macrolist[pos].narg ] = sign;
+						printf("%d\n", macros[hashedstring].macrolist[pos].argsigns[ macros[hashedstring].macrolist[pos].narg ]);
+						sign = 0;
 						macros[hashedstring].macrolist[pos].narg++;
-				macros[hashedstring].macrolist[pos].narg++;						
+						if (*argp == ')') break;
+					}
+					else if (*argp == '-')
+						sign = 1;	
+				}
 			}
 		}
 		else if (s[oldi] == 'U') {
 			if (!foundelement)  ERROR("Undefining an undefined macro \"%s\" in %s in line : %ld, collumn : %ld\n", backuppos, -1, macroname COMMA)
-			if (pos != macros[hashedstring].size) {
-				free(macros[hashedstring].macrolist[pos].bfi);
-				for (j = pos; j < macros[hashedstring].size; j++)
-					macros[hashedstring].macrolist[j] = macros[hashedstring].macrolist[j + 1];
-			}
-			else
-				free(macros[hashedstring].macrolist[pos - 1].bfi);
+			if (macros[hashedstring].macrolist[pos].bfi) free(macros[hashedstring].macrolist[pos].bfi);
+			if (macros[hashedstring].macrolist[pos].argsigns) free(macros[hashedstring].macrolist[pos].argsigns);
+			for (j = pos; j < macros[hashedstring].size; j++)
+				macros[hashedstring].macrolist[j] = macros[hashedstring].macrolist[j + 1];
 			macros[hashedstring].size--;
 		}
 		else if (s[oldi] == '$') { 
@@ -333,9 +344,11 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 				if (!macros[hashedstring].macrolist[pos].narg)
 					ERROR("Adding arguments to a macro: \"%s\" who doesn't have argument in %s in line : %ld, collumn : %ld\n", backuppos, -1, macroname COMMA)
 				unsigned currentarg, negative;
-				int cellpos;
-				for (cellpos = 0, currentarg = 1; *argp != ')'; argp++) {
-					if (*argp == ',') {
+				int cellpos, tempcellpos;
+				for (tempcellpos = cellpos = 0, currentarg = 0; *argp; argp++) { //condition is optional, but just in case
+					if (*argp == ',' || *argp == ')') {
+						if (cellpos - tempcellpos <= (int) macros[hashedstring].macrolist[pos].narg && cellpos - tempcellpos >= 0)	
+							ERROR("The argument cannot be the copycell or args cell, for further infos check docs, implementation section \"%s\" in %s in line : %ld, collumn : %ld\n", backuppos, -1, macroname COMMA)
 						if (cellpos < 0) {cellpos = -cellpos; negative = 1;}
 						else negative = 0;
 						for (k = 0; k < (unsigned) cellpos; k++)
@@ -343,13 +356,44 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 								output[(*outputpos)++] = '<';
 							else
 								output[(*outputpos)++] = '>';
+						output[(*outputpos)++] = '[';
+						if (macros[hashedstring].macrolist[pos].argsigns[currentarg])
+							output[(*outputpos)++] = '+';
+						else output[(*outputpos)++] = '-';
+						for (k = 0; k < (unsigned) cellpos; k++)
+							if (negative)
+								output[(*outputpos)++] = '>';
+							else
+								output[(*outputpos)++] = '<';
+						if (macros[hashedstring].macrolist[pos].argsigns[currentarg])
+							output[(*outputpos)++] = '-';
+						else output[(*outputpos)++] = '+';
+						for (l = 0; l < currentarg; l++)
+							output[(*outputpos)++] = '>';
+						if (macros[hashedstring].macrolist[pos].argsigns[currentarg])
+							output[(*outputpos)++] = '-';
+						else output[(*outputpos)++] = '+';
+						for (l = 0; l < currentarg; l++)
+							output[(*outputpos)++] = '<';
+						for (k = 0; k < (unsigned) cellpos; k++)
+							if (negative)
+								output[(*outputpos)++] = '<';
+							else
+								output[(*outputpos)++] = '>';
+						output[(*outputpos)++] = ']';
 						currentarg++;
+						tempcellpos = cellpos;
+						if (*argp == ')')
+							break;
 					}
 					else if (*argp == '<')
 						cellpos--;
 					else if (*argp == '>')
 						cellpos++;	
 				}
+				if (currentarg != macros[hashedstring].macrolist[pos].narg)
+					ERROR("%d arguments but : \"%s\" takes %d in %s in line : %ld, collumn : %ld\n", backuppos, -1, currentarg COMMA macroname 
+					COMMA macros[hashedstring].macrolist[pos].narg COMMA)
 			}
 			else if (macros[hashedstring].macrolist[pos].narg)
 				ERROR("Putting no arguments to a macro: \"%s\" who has argument(s) in %s in line : %ld, collumn : %ld\n", backuppos, -1, macroname COMMA)
