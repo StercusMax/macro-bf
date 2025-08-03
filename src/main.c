@@ -7,26 +7,27 @@
 #define CODESIZE 10000 //need to be not fixed
 #define OUTPUTSIZE 15000 //need to be not fixed
 
-void openfile(char * s, char * filename);
+int openfile(char * s, char * filename);
 
-int preprocess(char * code, char * output, char * filename);
+int preprocess(char * code, char * output, char * filename, int free);
 
 int main(int argc, char ** argv)
 {
 	if (argc == 1) {perror("Need a file to preprocess, usage: ./mbf file.mbf output.bf [optional]\n"); return -1;}
 	char code[CODESIZE] = {}, output[OUTPUTSIZE];
-	openfile(code, argv[1]);
-	if (preprocess(code, output, argv[1])) {fprintf(stderr, "Incorrect macro syntax in %s\n", argv[1]); return -3;}		
+	if (openfile(code, argv[1])) return -2;
+	if (preprocess(code, output, argv[1], 1)) {fprintf(stderr, "Incorrect macro syntax in %s\n", argv[1]); return -3;}		
 	printf("code:\n%s\n", output);
 	return 0;
 }
 
-void openfile(char * s, char * name)
+int openfile(char * s, char * name)
 {
 	FILE * f = fopen(name, "r");
-	if (!f) {fprintf(stderr, "Impossible to read the file %s\n", name); exit(-2);}
+	if (!f) {fprintf(stderr, "Impossible to read the file %s\n", name); return -2;}
 	fread(s, 1, CODESIZE - 1, f);
 	fclose(f);
+	return 0;
 }
 
 #define MAXNAME 100 //better if fixed
@@ -120,14 +121,14 @@ void initializemacrolist(struct macro * macrolist, int first, int last) //first 
 
 int processmacros(char * code, char * output, char *name, unsigned *outputpos, unsigned *i, struct pos *currentpos);
 
-int preprocess(char * s, char * output, char * name)
+int preprocess(char * s, char * output, char * name, int free)
 {
 	if (macros[0].macrolist == NULL)
 		for (unsigned i = 0; i < MAXMACROS; i++) {
 			macros[i].macrolist = NULL; //will have to malloc to create a list, in this list bfi should be null if there's no instruction, or malloc
 			macros[i].size = 0;
 		}
-	unsigned i,  outputpos ,outputwrite = 0;
+	unsigned i,  outputpos , outputwrite = 0;
 	struct pos currentpos = {.line = 0, .collumn = 0};
 	for (outputpos = i = 0; s[i]; i++, currentpos.collumn++)
 		switch(s[i])
@@ -139,14 +140,14 @@ int preprocess(char * s, char * output, char * name)
 		case '\n':
 			currentpos.line++; currentpos.collumn = 0; 
 			if (outputwrite) {
-				output[outputpos++] = s[i]; outputwrite = 1;
+				output[outputpos++] = s[i]; outputwrite = 0;
 			}
 			break;
 		default:
 			output[outputpos++] = s[i]; outputwrite = 1;
 			break;
 		}
-	freesubpointers(macros);
+	if (free) freesubpointers(macros);
 	output[outputpos] = '\0';
 	return 0;	
 }
@@ -166,48 +167,56 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 	case 'D': case 'U': case 'I': case '$': case '"':  case '%':
 		struct pos backuppos = (*currentpos);
 		++(*i); currentpos->collumn++;
-		unsigned oldi = (*i), j = 0, colon = 0;
+		unsigned oldi = (*i), j = 0, colon = 0, exclamationmark = 0, bfi = 0;
 		char endc;
 		char * argp = NULL, macroname[MAXNAME];
-		int parenthese = 0, bfi = -1;
-		if (s[(*i)] == '"') {
+		int parenthese = 0;
+		if (s[oldi] == '"') {
 			endc = '"';
-			if (s[(*i) + 1] && s[(*i) + 1] != '"')
+			if (s[oldi + 1] && s[oldi + 1] != '"')
 				bfi = *i + 1;
 		}
 		else
 			endc = '#';	
+		if (s[oldi] == 'I' && s[oldi + 1] == 'N')
+			(*i)++;
 		while (s[++(*i)]) {
-			currentpos->collumn++;	
+			currentpos->collumn++;
 			if (s[(*i)] == endc) {
 				if (endc == '"' && s[(*i) - 1] == '\\') 
 					continue;
-				else if ((s[oldi] == 'D' || s[oldi] == 'I') && colon) {
+				if ((s[oldi] == 'D' || s[oldi] == 'I') && colon) {
 					struct pos backuppos2 = (*currentpos);
 					(*i)++;
 					if (KEYWORDCHECK((*i), !=, &&)) {(*i)--; break;}
 					(*i)++;
 					int quotedstring = 0;
 					if (s[(*i) - 1] == 'D' || s[(*i) - 1] == 'I') { //with : after
-						char lastthing;
-						int stack, colon2;
-						for (lastthing = s[(*i) - 1], stack = 1, colon2 = 0; s[(*i)] && stack; (*i)++, currentpos->collumn++) {
+						int lastthing;
+						int stack, colon2[MAXNAME] = { };
+						for (lastthing = 1, stack = 1; s[(*i)] && stack; (*i)++, currentpos->collumn++) {
 							if (s[(*i)] == '#') {
 								if (KEYWORDCHECK((*i) + 1, ==, ||)) {
-									if ((lastthing == 'D' || lastthing == 'I') && !colon2) {stack--; continue;}
-									else if (lastthing == 'D' || lastthing == 'I') colon2 = 0;
-									if (s[*i + 1] == '"')
-										quotedstring = 1;
-									else
-										quotedstring = 0;
+									if (lastthing && !colon2[stack - 1]) {colon2[--stack] = 0; continue;}
+									else if (s[(*i) + 1] == '"' && !quotedstring) {
+										quotedstring = 1; lastthing = 0; stack++; continue; //avoid fake lasthing
+									}
 									stack++;
-									lastthing = s[(*i) + 1];
+									if (s[(*i) + 1] != 'I' && s[(*i) + 1] != 'D')
+										lastthing = 0;
+									else
+										lastthing = 1;
 								}
-								else
+								else if (!quotedstring) {
 									stack--;
+									lastthing = 1;		
+								}
 							}
-							else if (!colon2 && s[(*i)] == ':') colon2 = 1;
+							else if (!colon2[stack - 1] && s[(*i)] == ':') colon2[stack - 1] = 1;
 							else if (s[(*i)] == '\n' ) {currentpos->line++; currentpos->collumn = 0;}
+							else if (s[(*i)] == '"'&& s[(*i) - 1] != '\\' && quotedstring) {
+								quotedstring = 0; lastthing = 1; colon2[--stack] = 0;
+							}
 						}
 						if (!stack) {(*i)--; currentpos->collumn--;}
 					}
@@ -234,6 +243,10 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 				colon = 1; 
 				bfi = *i + 1;
 			}
+			else if (s[(*i)] == '!' && !exclamationmark) {
+				exclamationmark = 1;
+				continue; //avoid ! getting in macroname
+			}
 			if ((s[oldi] == 'D' || s[oldi] == 'I') && colon)
 					continue;
 			if (s[(*i)] == ')' && parenthese) {
@@ -248,15 +261,13 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 				macroname[j++] = s[(*i)];
 		}
 		if (!s[(*i)]) ERROR("Not closed %c in %s line : %ld, collumn : %ld\n", backuppos, -1, endc COMMA) 
-		else if (parenthese) ERROR("Not closed parentheses in %s line : %ld, collumn : %ld\n", backuppos, -1, ) 
 		macroname[j] = '\0'; //j will now serve as a loop i
 		unsigned hashedstring = hashstring(macroname), 
 		foundelement = findelement(macros[hashedstring], macroname),
 		pos = (foundelement) ? foundelement - 1 : macros[hashedstring].size;
-		printf("%d\n", pos);
 		char passedoutput[CODESIZE];
 		int retval;
-		unsigned l, k, passedoutputpos = 0;
+		unsigned l, k, passedoutputpos = 0, encounteredchar = 0;;
 		if (s[oldi] == 'D') {
 			if (!foundelement) {
 				if (!macros[hashedstring].macrolist) {
@@ -272,16 +283,12 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 				strcpy(macros[hashedstring].macrolist[pos].name, macroname); 
 				macros[hashedstring].size++;
 			}
-			if (bfi != -1) {
+			if (bfi) {
 				if (!macros[hashedstring].macrolist[pos].bfi)
 					macros[hashedstring].macrolist[pos].bfi = allocate(INITIALMBFI);
 
 				 //replace strings macros , $ and % macros in bfi
-				unsigned encounteredchar = 0;
 				for (j = bfi, l = 0; j < *i; j++, l++) {
-					if (!encounteredchar && isspace(s[j])) {l--; continue;}
-					if (s[j] == '\n') encounteredchar = 0;
-					else encounteredchar = 1;
 					if (s[j] == '#' && (s[j + 1] == '"' || s[j + 1] == '$' || s[j + 1] == '%')) {
 						retval =  processmacros(s, passedoutput, name, &passedoutputpos, &j, currentpos);
 						if (retval) return retval;
@@ -295,6 +302,9 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 						passedoutputpos = 0;
 					}
 					else {
+						if (!encounteredchar && isspace(s[j])) {l--; continue;}
+						if (s[j] == '\n') encounteredchar = 0;
+						else encounteredchar = 1;
 						if ((l + 1) % INITIALMBFI) //for null char
 							macros[hashedstring].macrolist[pos].bfi = reallocate(macros[hashedstring].macrolist[pos].bfi, 
 							INITIALMBFI * ((l / INITIALMBFI) + 1));
@@ -318,7 +328,6 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 						sizeof(int) * INITIALARGSIGN * (macros[hashedstring].macrolist[pos].narg  / INITIALARGSIGN + 1));
 
 						macros[hashedstring].macrolist[pos].argsigns[ macros[hashedstring].macrolist[pos].narg ] = sign;
-						printf("%d\n", macros[hashedstring].macrolist[pos].argsigns[ macros[hashedstring].macrolist[pos].narg ]);
 						sign = 0;
 						macros[hashedstring].macrolist[pos].narg++;
 						if (*argp == ')') break;
@@ -343,12 +352,14 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 			if (argp) {
 				if (!macros[hashedstring].macrolist[pos].narg)
 					ERROR("Adding arguments to a macro: \"%s\" who doesn't have argument in %s in line : %ld, collumn : %ld\n", backuppos, -1, macroname COMMA)
+				else if (exclamationmark)
+					ERROR("Adding arguments to a macro: \"%s\" who has '!' (see docs for further infos in %s in line) : %ld, collumn : %ld\n", backuppos, -1, macroname COMMA)
 				unsigned currentarg, negative;
-				int cellpos, tempcellpos;
-				for (tempcellpos = cellpos = 0, currentarg = 0; *argp; argp++) { //condition is optional, but just in case
+				int cellpos;
+				for (cellpos = 0, currentarg = 0; *argp; argp++) { //condition is optional, but just in case
 					if (*argp == ',' || *argp == ')') {
-						if (cellpos - tempcellpos <= (int) macros[hashedstring].macrolist[pos].narg && cellpos - tempcellpos >= 0)	
-							ERROR("The argument cannot be the copycell or args cell, for further infos check docs, implementation section \"%s\" in %s in line : %ld, collumn : %ld\n", backuppos, -1, macroname COMMA)
+						if (cellpos <= (int) macros[hashedstring].macrolist[pos].narg && cellpos >= 0)	
+							ERROR("The argument cannot be the copycell or args cell (for further infos check docs implementation section) :  \"%s\" in %s in line : %ld, collumn : %ld\n", backuppos, -1, macroname COMMA)
 						if (cellpos < 0) {cellpos = -cellpos; negative = 1;}
 						else negative = 0;
 						for (k = 0; k < (unsigned) cellpos; k++)
@@ -368,12 +379,12 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 						if (macros[hashedstring].macrolist[pos].argsigns[currentarg])
 							output[(*outputpos)++] = '-';
 						else output[(*outputpos)++] = '+';
-						for (l = 0; l < currentarg; l++)
+						for (l = 0; l < currentarg + 1; l++)
 							output[(*outputpos)++] = '>';
 						if (macros[hashedstring].macrolist[pos].argsigns[currentarg])
 							output[(*outputpos)++] = '-';
 						else output[(*outputpos)++] = '+';
-						for (l = 0; l < currentarg; l++)
+						for (l = 0; l < currentarg + 1; l++)
 							output[(*outputpos)++] = '<';
 						for (k = 0; k < (unsigned) cellpos; k++)
 							if (negative)
@@ -381,8 +392,31 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 							else
 								output[(*outputpos)++] = '>';
 						output[(*outputpos)++] = ']';
+						for (k = 0; k < (unsigned) cellpos; k++)
+							if (negative)
+								output[(*outputpos)++] = '>';
+							else
+								output[(*outputpos)++] = '<';
+						output[(*outputpos)++] = '[';
+						if (macros[hashedstring].macrolist[pos].argsigns[currentarg])
+							output[(*outputpos)++] = '+';
+						else output[(*outputpos)++] = '-';
+						for (k = 0; k < (unsigned) cellpos; k++)
+							if (negative)
+								output[(*outputpos)++] = '<';
+							else
+								output[(*outputpos)++] = '>';
+						if (macros[hashedstring].macrolist[pos].argsigns[currentarg])
+							output[(*outputpos)++] = '-';
+						else output[(*outputpos)++] = '+';
+						for (k = 0; k < (unsigned) cellpos; k++)
+							if (negative)
+								output[(*outputpos)++] = '>';
+							else
+								output[(*outputpos)++] = '<';
+						output[(*outputpos)++] = ']';
 						currentarg++;
-						tempcellpos = cellpos;
+						cellpos = 0;
 						if (*argp == ')')
 							break;
 					}
@@ -395,16 +429,18 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 					ERROR("%d arguments but : \"%s\" takes %d in %s in line : %ld, collumn : %ld\n", backuppos, -1, currentarg COMMA macroname 
 					COMMA macros[hashedstring].macrolist[pos].narg COMMA)
 			}
-			else if (macros[hashedstring].macrolist[pos].narg)
-				ERROR("Putting no arguments to a macro: \"%s\" who has argument(s) in %s in line : %ld, collumn : %ld\n", backuppos, -1, macroname COMMA)
+			else if (macros[hashedstring].macrolist[pos].narg && !exclamationmark)
+				ERROR("Putting no arguments to a macro: \"%s\" who has argument(s), '!' to avoid this error note that you will have to know about macro-bf first,\n"
+			"in %s in line : %ld, collumn : %ld\n", backuppos, -1, macroname COMMA)
 			//get the content of the macro and put it in the file, macro execute the U,I,IN
 			for (bfi = 0; macros[hashedstring].macrolist[pos].bfi[bfi]; bfi++) {
-				if (s[bfi] == '#' && (s[bfi + 1] == 'U' || s[bfi + 1] == 'I')) {
-					retval = processmacros(s, passedoutput, name, &passedoutputpos, &j, currentpos);
+				if (macros[hashedstring].macrolist[pos].bfi[bfi] == '#' && 
+				(macros[hashedstring].macrolist[pos].bfi[bfi + 1] == 'U' || macros[hashedstring].macrolist[pos].bfi[bfi + 1] == 'I' || 
+				macros[hashedstring].macrolist[pos].bfi[bfi + 1] == 'D')) {
+					retval = processmacros(macros[hashedstring].macrolist[pos].bfi, passedoutput, name, &passedoutputpos, &bfi, currentpos);
 					if (retval) return retval;
-					for (k = 0; k < passedoutputpos; k++, (*outputpos)++)
-						output[*outputpos] = passedoutput[k];
-					if (k) (*outputpos)--;
+					for (k = 0; k < passedoutputpos; k++)
+						output[(*outputpos)++] = passedoutput[k];
 					passedoutputpos = 0;
 				}
 				else
@@ -412,18 +448,97 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 			}
 		}
 		else if (s[oldi] == '%') {
-			char file[CODESIZE], macroreplaced[OUTPUTSIZE];
-			printf("opened file %s\n", macroname);
+			char file[CODESIZE], macroreplaced[OUTPUTSIZE] = {};
+			if (openfile(file, macroname)) ERROR("Impossible to read the file: \"%s\" in %s in line : %ld, collumn : %ld\n", backuppos, -2, macroname COMMA)
+			if (preprocess(file, macroreplaced, macroname, 0)) return -1;
+			for (j = 0; macroreplaced[j]; j++)
+				output[(*outputpos)++] = macroreplaced[j];
 		}
 		else if (s[oldi] == '"') {
-			char temp;
+			char temp, inttos[4];
+			int xctoi(char c), isodigit(char c), litescapeseq = -1;
 			for (; s[bfi]!='"' || s[bfi - 1] == '\\'; bfi++) {
-				for (temp = s[bfi]; temp; temp--)
+				if (s[bfi] == '\t' || s[bfi] == '\n') continue;
+				if (s[bfi] == '\\') 
+					switch (s[bfi + 1])
+					{
+					case 'a': s[++bfi] = '\a'; break;
+					case 'b': s[++bfi] = '\b'; break;
+					case 'e': s[++bfi] = '\e'; break;
+					case 'f': s[++bfi] = '\f'; break;
+					case 'n': s[++bfi] = '\n'; break;
+					case 'r': s[++bfi] = '\r'; break;
+					case 't': s[++bfi] = '\t'; break;
+					case 'v': s[++bfi] = '\v'; break;
+					case '\\': s[++bfi] = '\\'; break;
+					case '\'': s[++bfi] = '\''; break;
+					case '"': bfi++; break;
+					case 'x': case 'X':
+						if (!isxdigit(s[bfi + 2])) ERROR("No xdigit after \\x in %s in line : %ld, collumn : %ld\n", backuppos, -1, )
+						litescapeseq = xctoi(s[bfi + 2]);
+						bfi++;
+						if (isxdigit(s[bfi + 2])) {
+							litescapeseq *= 16;
+							litescapeseq += xctoi(s[bfi + 2]);
+							bfi++;
+						}
+						bfi++;
+						break;
+					default:
+						if (isodigit(s[bfi + 1])) { //if it's octal
+							litescapeseq = s[bfi + 1] - '0';
+							bfi++;
+							if (isodigit(s[bfi + 1])) {
+								litescapeseq *= 8;
+								litescapeseq += s[bfi + 1] - '0';
+								bfi++;
+								if (isodigit(s[bfi + 1])) {
+									litescapeseq *= 8;
+									litescapeseq += s[bfi + 1] - '0';
+									bfi++;
+								}
+							}
+							printf("%d and %d\n", litescapeseq, bfi);
+						}
+						else
+							ERROR("Nothing valid after \\ in %s in line : %ld, collumn : %ld\n", backuppos, -1, )
+						break;
+					}
+				for (temp = (litescapeseq == - 1) ? s[bfi] : litescapeseq; temp; temp--)
 					output[(*outputpos)++] = '+';
 				output[(*outputpos)++] = ' ';
-				output[(*outputpos)++] = s[bfi];
+				output[(*outputpos)++] = 'c';
+				output[(*outputpos)++] = '=';
+				sprintf(inttos, "%d", (litescapeseq == - 1) ? s[bfi] : litescapeseq);
+				for (j = 0; inttos[j]; j++)
+					output[(*outputpos)++] = inttos[j];
 				output[(*outputpos)++] = '\n';	
 				output[(*outputpos)++] = '>';
+				litescapeseq = -1;
+			}
+		}
+		else if(s[oldi] == 'I') {
+			if (!bfi) break;
+			if (s[oldi + 1] != 'N') {
+				if (!foundelement) break;
+			}
+			else if (foundelement) break;
+			for (j = bfi; j < *i; j++) {
+				if (s[j] == '#' && KEYWORDCHECK(j + 1, ==, ||)) {
+					retval =  processmacros(s, passedoutput, name, &passedoutputpos, &j, currentpos);
+					if (retval) return retval;
+					for (k = 0; k < passedoutputpos; k++, l++) {
+						output[(*outputpos)++] = passedoutput[k];
+					}
+					if (k) l--;
+					passedoutputpos = 0;
+				}
+				else {
+					if (!encounteredchar && isspace(s[j])) {l--; continue;}
+					if (s[j] == '\n') encounteredchar = 0;
+					else encounteredchar = 1;
+					output[(*outputpos)++] = s[j];
+				}
 			}
 		}
 		break;
@@ -432,4 +547,21 @@ int processmacros(char * s, char * output, char *name, unsigned *outputpos, unsi
 		break;
 	}
 	return 0;
+}
+
+int xctoi(char c)
+{
+	if (isdigit(c))
+		c -= 48;
+	else if (isxdigit(c))
+		c = 10 + c - ((isalpha(c)) ? 'A' : 'a');
+	return (int) c;
+}
+
+int isodigit(char c)
+{
+	if (c >= '0' && c <= '7')
+		return 1;
+	else
+		return 0;
 }
