@@ -589,7 +589,7 @@ int processmacros(char * s, char ** output, char *name, unsigned *outputpos, uns
 					{
 					case 'a': s[++bfi] = '\a'; break;
 					case 'b': s[++bfi] = '\b'; break;
-					case 'e': s[++bfi] = '\e'; break;
+					case 'e': s[++bfi] = 27; break;
 					case 'f': s[++bfi] = '\f'; break;
 					case 'n': s[++bfi] = '\n'; break;
 					case 'r': s[++bfi] = '\r'; break;
