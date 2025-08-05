@@ -13,10 +13,12 @@ The first line defines a macro named add1, with the semicolon delimiting the mac
 ## Macro-bf to bf
 To compile your Macro-bf code, simply take the preprocessor binary and type:
 ```bash
-./mbf file.mbf [needed] output.bf [facultative, by default output.bf]```
+./mbf file.mbf [needed] output.bf [facultative, by default output.bf]
+```
 This will generate a file with the content:
-``bf
-+`` 
+```bf
++
+``` 
 which is exactly what we want
 
 ##Available actions
