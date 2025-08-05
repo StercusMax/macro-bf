@@ -410,10 +410,10 @@ int processmacros(char * s, char ** output, char *name, unsigned *outputpos, uns
 					mallocate(macros[hashedstring].macrolist, sizeof(struct macro) * INITIALLIST);
 					initializemacrolist(macros[hashedstring].macrolist, 0, INITIALLIST - 1);
 				}
-				else if (pos > 0 && !(pos % INITIALLIST)) {
+				else if (pos > 0 && !((pos + 1) % INITIALLIST)) {
 					mreallocate(macros[hashedstring].macrolist, 
-						sizeof(struct macro) * INITIALLIST * (pos / INITIALLIST + 1)); 
-					initializemacrolist(macros[hashedstring].macrolist, INITIALLIST * (pos / INITIALLIST) 
+						sizeof(struct macro) * INITIALLIST * ((pos + 1) / INITIALLIST + 1)); 
+					initializemacrolist(macros[hashedstring].macrolist, INITIALLIST * ((pos + 1) / INITIALLIST) 
 						, INITIALLIST * (pos / INITIALLIST + 1) - 1);
 				}
 				strcpy(macros[hashedstring].macrolist[pos].name, macroname); 
@@ -432,7 +432,7 @@ int processmacros(char * s, char ** output, char *name, unsigned *outputpos, uns
 						if (retval) {free(passedoutput); return retval;}
 						for (k = 0; k < passedoutputpos; k++, l++) {
 							if (!((l + 1) % INITIALMBFI)) {//for null char
-                                mreallocatefree(macros[hashedstring].macrolist[pos].bfi, passedoutput, INITIALMBFI * ((l / INITIALMBFI) + 1));
+                                mreallocatefree(macros[hashedstring].macrolist[pos].bfi, passedoutput, INITIALMBFI * (((l + 1) / INITIALMBFI) + 1));
                             }
 							macros[hashedstring].macrolist[pos].bfi[l] = passedoutput[k];
 						}
@@ -443,8 +443,8 @@ int processmacros(char * s, char ** output, char *name, unsigned *outputpos, uns
 						if (!encounteredchar && isspace(s[j])) {l--; continue;}
 						if (s[j] == '\n') encounteredchar = 0;
 						else encounteredchar = 1;
-						if ((l + 1) % INITIALMBFI) {//for null char
-                            mreallocatefree(macros[hashedstring].macrolist[pos].bfi, passedoutput, INITIALMBFI * ((l / INITIALMBFI) + 1));
+						if (!((l + 1) % INITIALMBFI)) {//for null char
+                            mreallocatefree(macros[hashedstring].macrolist[pos].bfi, passedoutput, INITIALMBFI * (((l + 1) / INITIALMBFI) + 1));
                         }
 						macros[hashedstring].macrolist[pos].bfi[l] = s[j];
 					}		
