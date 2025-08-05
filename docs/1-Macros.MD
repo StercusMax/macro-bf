@@ -50,10 +50,11 @@ When writing this, the preprocessor will copy the values given in the macro, usi
 
 To do a thing like this, we need to set a convention. To make it simpler, here's a visualization of memory:
 
+```
 -------------------------    
 |cpycell|arg1|arg2||argn|
 -------------------------
-
+```
 The implementation considers the current cell as the copy cell and assumes that the cpycell and argn are set to zero. It uses the copy cell to copy into the nargs of the macro and gives back the values of the given arguments. The only way to do this is through a loop in Brainfuck.
 
 For instance:  
@@ -92,6 +93,7 @@ Here's a string, the preprocessor just takes the ASCII values of each character 
 >+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ c=105
 >++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ c=110
 >+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ c=103
->```
+>
+```
 
 The preprocessor writes the given ASCII value of each character with c=N to facilitate reading when translating to BF. The #"STRING" also supports escape sequences like \n, octal hex, and a good part of escape sequences in C.
