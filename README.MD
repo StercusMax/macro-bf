@@ -21,7 +21,7 @@ This will generate a file with the content:
 ``` 
 which is exactly what we want
 
-##Available actions
+## Available actions
 Here’s a summary of the available macro actions. However, I recommend checking the ``docs`` for more detailed information regarding naming rules, implementation specifics, and more. This summary is mainly targeted at people who have already reviewed that.
 
 
