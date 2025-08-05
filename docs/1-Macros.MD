@@ -55,7 +55,7 @@ To do a thing like this, we need to set a convention. To make it simpler, here's
 |cpycell|arg1|arg2||argn|
 -------------------------
 ```
-The implementation considers the current cell as the copy cell and assumes that the cpycell and argn are set to zero. It uses the copy cell to copy into the nargs of the macro and gives back the values of the given arguments. The only way to do this is through a loop in Brainfuck.
+It considers the current cell as the copy cell and assumes that the cpycell and arg1, arg2, argn are set to zero. It uses the copy cell to copy into the nargs of the macro and gives back the values of the given arguments. The only way to do this is through a loop in Brainfuck.
 
 For instance:  
 ```bf
@@ -72,7 +72,7 @@ There are some issues with this. The first one is about the risk of going out of
 ``` 
 The minus symbol indicates to the preprocessor to loop especially for negative cell arguments, it can create issues if the user of the macro inputs the opposite sign of what the macro specified.
 The preprocessor, after this step (so at the start of the actual macro actions), points to the copy cell.
-Since using macro arguments as the preprocessor provides can be a constraint, the preprocessor also allows you to skip the copy step and gives you the responsibility of filling the cells with the symbol '!', which you can put in: 
+Since using macro arguments as the preprocessor provides can be a constraint, the preprocessor also allows you to skip the copy step and gives you the responsibility of filling the cells like they are supposed to be with the symbol '!', which you can put in: 
 ```bf
 #$!MACRO#
 ```
