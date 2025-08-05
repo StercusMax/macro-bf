@@ -3,14 +3,14 @@ Macro-bf isn't a Brainfuck-inspired programming language, it's just a preprocess
 
 I remember creating a new language in Brainfuck in the past, but it's not as fun to use as it is to create. If we want to stick to native Brainfuck, the poor modularity of Brainfuck imposes certain limits on code writing. This is where Macro-bf comes into play. Inspired by the C preprocessor (adapted for Brainfuck), it provides the power to include files and create macros, along with various other useful features. It translates quickly and easily to Brainfuck since it's just a preprocessor.
 
-##Write your first macro-bf program
+## Write your first macro-bf program
 ```bf
 #D add1 : +#
 #$ add1#
 ```
 The first line defines a macro named add1, with the semicolon delimiting the macro name and the content you want to include.
 
-##Macro-bf to bf
+## Macro-bf to bf
 To compile your Macro-bf code, simply take the preprocessor binary and type:
 ```bash
 ./mbf file.mbf [needed] output.bf [facultative, by default output.bf]```
@@ -48,7 +48,7 @@ Integrated macro:
 Include file:
 ``#%FILE#``
 
-##Contributing
+## Contributing
 Contributions are welcome, some bugs are probably hiding in my implementation.
 
 Happy brainfucking

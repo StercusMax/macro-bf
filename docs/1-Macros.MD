@@ -1,4 +1,4 @@
-## Macros
+# Macros
 
 ``#D MACRO : MBFI#``  
 For the rest of the docs, MBFI are macro actions, BF instructions, and comments you can put.
