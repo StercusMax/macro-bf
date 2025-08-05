@@ -84,6 +84,7 @@ The preprocessor has an integrated macro for strings (a macro that cannot be def
 #"String"
 ``` 
 (Note 3: as you can see, it's delimited with ``#""``, no ``#`` at the end like other macro actions, it's a way to make it easier to read and not redundant).
+The string macro supposes that every cells are null, like seen previously, the preprocessor cannot reset cells safely.
 
 Here's a string, the preprocessor just takes the ASCII values of each character and puts it in Brainfuck cells. The first character is in the current cell, and the last character is in current cell - 1.
 ```bf
