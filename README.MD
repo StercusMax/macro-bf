@@ -5,7 +5,8 @@ I remember creating a new language in Brainfuck in the past, but it's not as fun
 
 ## Getting the preprocessor
 You can get the preprocessor from the releases or compile it manually.
-### Compiling
+
+## Compiling
 ```bash
 gcc -o mbf src/main.c -lm
 ``` 
