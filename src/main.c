@@ -227,6 +227,11 @@ int preprocess(char * s, char ** output, char * name, int freeb, size_t size)
 				return retvalue;
 			}
 			break;
+		case ';':
+			while (s[i] != '\n' && s[i])
+				i++;
+			i--; //so it process \n
+			break;
 		case '\n':
 			currentpos.line++; currentpos.collumn = 0; 
 			if (outputwrite) {
