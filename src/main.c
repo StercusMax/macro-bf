@@ -583,7 +583,7 @@ int processmacros(char * s, char ** output, char *name, unsigned *outputpos, uns
 			char temp, inttos[4];
 			int xctoi(char c), isodigit(char c), litescapeseq = -1;
 			for (; s[bfi]!='"' || s[bfi - 1] == '\\'; bfi++) {
-				if (s[bfi] == '\t') continue;
+				if (s[bfi] == '\n') continue;
 				if (s[bfi] == '\\') 
 					switch (s[bfi + 1])
 					{
