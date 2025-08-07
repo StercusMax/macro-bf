@@ -16,7 +16,9 @@ However, not every macro wants MBFI, for those,
 The last `#` is used to delimit since macro actions can take multiple lines.
 
 After defining the macro, we can use it by typing:  
-``#$MACRO#``  
+```bf
+#$MACRO#
+```  
 Like the others, it doesn't care about spaces.
 
 ## Edge Cases
@@ -68,15 +70,23 @@ generates the following Brainfuck code (if MACRO doesn't have a null MBFI - see 
 ```
 There are some issues with this. The first one is about the risk of going out of the cell range since the preprocessor doesn't check the given arguments. The second is the time it takes to copy everything if the distance is too big. The third is the question about signed/unsigned numbers, which is partially solved since the preprocessor allows you to define macros that take negative cells: 
 ```bf
-#D MACRO(-,) : MBFI#.
-``` 
-The minus symbol indicates to the preprocessor to loop especially for negative cell arguments, it can create issues if the user of the macro inputs the opposite sign of what the macro specified.
-The preprocessor, after this step (so at the start of the actual macro actions), points to the copy cell.
+#D MACRO(-,) : MBFI#. ARG1 negative ARG2 positive
+```
+(0 has not type, negative and positive works)
+The minus symbol indicates to the preprocessor to loop especially for negative cell arguments, it can create issues if the user of the macro inputs the opposite sign of what the macro specified. On top of that you need to know the sign of your argument whether positive whether negative.
+
+You can also oppose the type of the argument in the usage it's however really dangerous since some macros can suppose the argument is positive and giving a negative number can creates a lot of errors.
+```bf
+#D MACRO(-,) : MBFI# ARG1 negative ARG2 positive
+#$ MACRO(-</>, -</>)# ARG1 positive ARG2 negative
+```
+The preprocessor, after usage of macro argument (so at the start of the actual macro actions), points to the copy cell. 
 Since using macro arguments as the preprocessor provides can be a constraint, the preprocessor also allows you to skip the copy step and gives you the responsibility of filling the cells like they are supposed to be with the symbol '!', which you can put in: 
 ```bf
-#$!MACRO#
+#$!MACRO# The currentcell must be cpycell (and must be set to 0) next cell args etc since macros with arguments will suppose that
 ```
-By convention, a macro with arguments is composed of cpycell, args, and return. Macros can keep args safe by not editing them or making it seem that they weren't edited. If it's not argsafe, the arg(s) are the return(s), if it's the return(s), they are distinct cell(s). Feel free to respect or not this convention, as long you don't lose yourself.
+By convention, a macro with arguments is composed of cpycell, args, and return. Macros can keep args safe by not editing them or making it seem that they weren't edited. If it's not argsafe, the arg(s) are the return(s), if it's argsafe, they are distinct cell(s). 
+Feel free to respect or not this convention, as long you don't lose yourself.
 
 ## Strings
 The preprocessor has an integrated macro for strings (a macro that cannot be defined that easily using MBF, so defined with C). You cannot interact with it like the macros you would define.

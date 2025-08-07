@@ -278,10 +278,10 @@ for (k = 0; k < (unsigned) cellpos; k++) \
 		writetooutput(POSITIVETO); \
     }
 #define LOOPACT(POSITIVEACT,NEGATIVEACT) \
-if (macros[hashedstring].macrolist[pos].argsigns[currentarg]) {\
-	writetooutput(POSITIVEACT); \
+if (macros[hashedstring].macrolist[pos].argsigns[currentarg]) { \
+	if (!changesign) {writetooutput(POSITIVEACT);} else {writetooutput(NEGATIVEACT);} \
 } \
-else { writetooutput(NEGATIVEACT);}
+else {if (!changesign) {writetooutput(NEGATIVEACT);} else {writetooutput(NEGATIVEACT);}}
 
 #define CHECKCIRC(giventype) \
 unsigned hashedstringcirc = hashstring(macroname, MAXCIRC); \
@@ -498,8 +498,8 @@ int processmacros(char * s, char ** output, char *name, unsigned *outputpos, uns
 				if (!macros[hashedstring].macrolist[pos].narg)
 					ERROR("Adding arguments to a macro: \"%s\" who doesn't have argument in %s in line : %ld, collumn : %ld\n", backuppos, -8, macroname COMMA)
 				else if (exclamationmark)
-					ERROR("Adding arguments to a macro: \"%s\" who has '!' (see docs for further infos in %s in line) : %ld, collumn : %ld\n", backuppos, -9, macroname COMMA)
-				unsigned currentarg, negative;
+					ERROR("Adding no arguments to a macro: \"%s\" who has '!' (see docs for further infos in %s in line) : %ld, collumn : %ld\n", backuppos, -9, macroname COMMA)
+				unsigned currentarg, negative, changesign = 0;
 				int cellpos;
 				for (cellpos = 0, currentarg = 0; *argp; argp++) { //condition is optional, but just in case
 					if (*argp == ',' || *argp == ')') {
@@ -529,14 +529,16 @@ int processmacros(char * s, char ** output, char *name, unsigned *outputpos, uns
 						GOTOARG('>', '<');
 						writetooutput(']');
 						currentarg++;
-						cellpos = 0;
+						changesign = cellpos = 0;
 						if (*argp == ')')
 							break;
-					}
-					else if (*argp == '<')
-						cellpos--;
-					else if (*argp == '>')
-						cellpos++;	
+				}
+				else if (*argp == '<')
+					cellpos--;
+				else if (*argp == '>')
+					cellpos++;	
+				else if(*argp == '-')
+					changesign = 1;
 				}
 				if (currentarg != macros[hashedstring].macrolist[pos].narg)
 					ERROR("%d arguments but : \"%s\" takes %d in %s in line : %ld, collumn : %ld\n", backuppos, -11, currentarg COMMA macroname 
