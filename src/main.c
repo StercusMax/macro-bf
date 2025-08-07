@@ -281,7 +281,7 @@ for (k = 0; k < (unsigned) cellpos; k++) \
 if (macros[hashedstring].macrolist[pos].argsigns[currentarg]) { \
 	if (!changesign) {writetooutput(POSITIVEACT);} else {writetooutput(NEGATIVEACT);} \
 } \
-else {if (!changesign) {writetooutput(NEGATIVEACT);} else {writetooutput(NEGATIVEACT);}}
+else {if (!changesign) {writetooutput(NEGATIVEACT);} else {writetooutput(POSITIVEACT);}}
 
 #define CHECKCIRC(giventype) \
 unsigned hashedstringcirc = hashstring(macroname, MAXCIRC); \
