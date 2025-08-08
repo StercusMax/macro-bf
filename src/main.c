@@ -669,6 +669,7 @@ int processmacros(char * s, char ** output, char *name, unsigned *outputpos, uns
 					passedoutputpos = 0;
 				}
 				else {
+					if (s[j] == ';') {while (s[j] && s[j] != '\n') j++;} 
 					if (!encounteredchar && isspace(s[j])) {l--; continue;}
 					if (s[j] == '\n') encounteredchar = 0;
 					else encounteredchar = 1;
